@@ -1,0 +1,22 @@
+{
+  "name": "link_backend",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "compile": "npx tsc ./src/hi.ts --outDir ./src/dist",
+    "start":"npm run compile && node ./src/dist/hi.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.19.2",
+    "prisma": "^5.15.1"
+  },
+  "devDependencies": {
+    "globals": "^15.6.0",
+    "typescript": "^5.5.2"
+  }
+}
