@@ -1,0 +1,45 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id           Int      @id @default(autoincrement())
+  email        String   @unique
+  passwordHash String
+  mobile       Int?
+  createdAt    DateTime @default(now())
+  subscribed   Boolean?
+
+  links Link[]
+}
+
+model Link {
+  id            Int      @id @default(autoincrement())
+  originalLink  String
+  shortLink     String   @unique
+  encState      Boolean
+  encPass       String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @default(now())
+  belongsToId   Int
+  belongsToUser User     @relation(fields: [belongsToId], references: [id])
+  qrCodeState   Boolean
+  stats         Stats[]
+}
+
+model Stats {
+  id          Int        @id @default(autoincrement())
+  numOfVisits Int
+  browser     String
+  location    String
+  reloads     Int?
+  visitTime   DateTime[]
+  linkid      Int
+  linkedTo    Link       @relation(fields: [linkid], references: [id])
+}
