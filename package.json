@@ -6,7 +6,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "compile": "npx tsc ./src/hi.ts --outDir ./src/dist",
-    "start":"npm run compile && node ./src/dist/hi.js"
+    "start": "npm run compile && node ./src/dist/hi.js"
   },
   "keywords": [],
   "author": "",
