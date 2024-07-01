@@ -10,6 +10,7 @@ datasource db {
 
 model User {
   id           Int      @id @default(autoincrement())
+  name         String   @default("default_name") // Add a default value here
   email        String   @unique
   passwordHash String
   mobile       Int?
