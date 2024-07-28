@@ -1,14 +1,14 @@
-import prisma from '../db';
-import bcrypt from 'bcrypt';
-import { ExpresRouteFn } from '../types/ExpressRoutefn';
-import { AppError, globalErrorHandler } from '../middleware/errorMiddleware';
-import jwt from 'jsonwebtoken';
+import prisma from "../db";
+import bcrypt from "bcrypt";
+import { ExpresRouteFn } from "../types/ExpressRoutefn";
+import { AppError, globalErrorHandler } from "../middleware/errorMiddleware";
+import jwt from "jsonwebtoken";
 
 export const createNewUser: ExpresRouteFn = async (req, res, next) => {
   const { name, email, password } = req.body;
 
   if (!name || !email || !password) {
-    return next(new AppError('Please provide all the required details', 500));
+    return next(new AppError("Please provide all the required details", 500));
   }
 
   try {
@@ -17,7 +17,7 @@ export const createNewUser: ExpresRouteFn = async (req, res, next) => {
     if (oldUser) {
       return next(
         globalErrorHandler(
-          new AppError('User already registered', 502),
+          new AppError("User already registered", 502),
           req,
           res,
           next
@@ -37,7 +37,7 @@ export const createNewUser: ExpresRouteFn = async (req, res, next) => {
   } catch (error: any) {
     if (!(error instanceof AppError)) {
       error = new AppError(
-        error.message || 'User creation failed. Please try again later.',
+        error.message || "User creation failed. Please try again later.",
         500,
         false
       );
@@ -48,9 +48,8 @@ export const createNewUser: ExpresRouteFn = async (req, res, next) => {
 
 export const signin: ExpresRouteFn = async (req, res, next) => {
   const { email, password } = req.body;
-
   if (!email || !password) {
-    return next(new AppError('Please provide all the required details', 500));
+    return next(new AppError("Please provide all the required details", 500));
   }
 
   try {
@@ -59,12 +58,15 @@ export const signin: ExpresRouteFn = async (req, res, next) => {
         email: email,
       },
     });
-
     //@ts-ignore [TODO: create user interface in .d.ts file] - @rutuj
-    const isValid = await comparePasswords(req.body.password, user.password);
+    const isValid = await comparePasswords(
+      req.body.password,
+      user?.passwordHash
+    );
+    console.log(isValid);
     if (!isValid) {
       res.status(401).json({
-        message: 'Invalid password',
+        message: "Invalid password",
       });
     }
 
@@ -73,7 +75,7 @@ export const signin: ExpresRouteFn = async (req, res, next) => {
   } catch (error: any) {
     if (!(error instanceof AppError)) {
       error = new AppError(
-        error.message || 'User creation failed. Please try again later.',
+        error.message || "User creation failed. Please try again later.",
         500,
         false
       );
@@ -93,10 +95,7 @@ function comparePasswords(password: any, hash: any) {
 
 export const createJWT = (user: any) => {
   const token = jwt.sign(
-    {
-      id: user.id,
-      username: user.username,
-    },
+    user,
     //@ts-ignore
     process.env.JWT_SECRET
   );
@@ -108,15 +107,15 @@ export const protect: ExpresRouteFn = async (req, res, next) => {
 
   if (!bearer) {
     res.status(401);
-    res.json({ message: 'not authorized' });
+    res.json({ message: "not authorized" });
     return;
   }
 
-  const [, token] = bearer.split(' ');
+  const [, token] = bearer.split(" ");
 
   if (!token) {
     res.status(401);
-    res.json({ message: 'not valid token' });
+    res.json({ message: "not valid token" });
     return;
   }
 
@@ -129,7 +128,7 @@ export const protect: ExpresRouteFn = async (req, res, next) => {
   } catch (e) {
     console.error(e);
     res.status(401);
-    res.json({ message: 'not valid token' });
+    res.json({ message: "not valid token" });
     return;
   }
 };

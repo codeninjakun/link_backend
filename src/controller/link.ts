@@ -1,41 +1,57 @@
 // given a link shorten it and redirect it to a new page
 // put encrytion
-import { ExpresRouteFn } from '../types/ExpressRoutefn';
-import { AppError, globalErrorHandler } from '../middleware/errorMiddleware';
-import prisma from '../db';
+import { ExpresRouteFn } from "../types/ExpressRoutefn";
+import { AppError, globalErrorHandler } from "../middleware/errorMiddleware";
+import prisma from "../db";
 
 export const createLink: ExpresRouteFn = async (req, res, next) => {
   const { originalLink, shortLink, encState, encPass, qrCodeState } = req.body;
 
+  const url = await prisma.link.findUnique({
+    where: {
+      shortLink: shortLink,
+    },
+  });
   // Shortlink must be unique
-  try {
-    const url = prisma.link.findFirstOrThrow({
-      where: {
-        shortLink: shortLink,
-      },
+  if (url) {
+    res.status(404).send({
+      message: "Shortlink taken, use a different short-link!",
+      url,
     });
-    res
-      .status(404)
-      .send({ message: 'Shortlink taken, use a different short-link!', url });
-  } catch {
-    // Shortlink is unique - Insert into db
-    const createdLink = prisma.link.create({
+  }
+
+  try {
+    //@ts-ignore
+    console.log(req.user);
+    // @ts-ignore
+    console.log(req.user.id);
+    const createdLink = await prisma.link.create({
       data: {
-        shortLink: shortLink,
-        originalLink: originalLink,
-        encPass: encPass,
-        encState: encState,
+        shortLink,
+        originalLink,
+        encState,
+        encPass,
         // TODO: Add user type definitions
         //@ts-ignore
-        belongsToId: user.id, // user login info,
         //@ts-ignore
-        belongsToUser: user,
-        qrCodeState: qrCodeState,
+        belongsToId: req.user.id, // user login info
+        // @ts-ignore
+        qrCodeState,
       },
     });
 
     res
-      .status(207)
-      .send({ message: 'Link created successfully!', createdLink });
+      .status(201)
+      .send({ message: "Link created successfully!", createdLink });
+  } catch (error: any) {
+    // Shortlink is unique - Insert into db
+    if (!(error instanceof AppError)) {
+      error = new AppError(
+        error.message || "Link creation failed. Please try again later.",
+        500,
+        false
+      );
+    }
+    next(error);
   }
 };
