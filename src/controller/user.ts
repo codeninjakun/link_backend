@@ -2,6 +2,7 @@ import prisma from '../db';
 import bcrypt from 'bcrypt';
 import { ExpresRouteFn } from '../types/ExpressRoutefn';
 import { AppError, globalErrorHandler } from '../middleware/errorMiddleware';
+import jwt from 'jsonwebtoken';
 
 export const createNewUser: ExpresRouteFn = async (req, res, next) => {
   const { name, email, password } = req.body;
@@ -31,11 +32,8 @@ export const createNewUser: ExpresRouteFn = async (req, res, next) => {
         passwordHash: await hashPassword(password),
       },
     });
-
-    res.status(200).json({
-      message: 'User created',
-      newUser,
-    });
+    const token = createJWT(newUser);
+    res.status(200).json({ token });
   } catch (error: any) {
     if (!(error instanceof AppError)) {
       error = new AppError(
@@ -70,10 +68,8 @@ export const signin: ExpresRouteFn = async (req, res, next) => {
       });
     }
 
-    res.status(200).json({
-      message: 'User logged in successfully',
-      user,
-    });
+    const token = createJWT(user);
+    res.json({ token });
   } catch (error: any) {
     if (!(error instanceof AppError)) {
       error = new AppError(
@@ -94,3 +90,46 @@ function hashPassword(password: any): string {
 function comparePasswords(password: any, hash: any) {
   return bcrypt.compare(password, hash);
 }
+
+export const createJWT = (user: any) => {
+  const token = jwt.sign(
+    {
+      id: user.id,
+      username: user.username,
+    },
+    //@ts-ignore
+    process.env.JWT_SECRET
+  );
+  return token;
+};
+
+export const protect: ExpresRouteFn = async (req, res, next) => {
+  const bearer = req.headers.authorization;
+
+  if (!bearer) {
+    res.status(401);
+    res.json({ message: 'not authorized' });
+    return;
+  }
+
+  const [, token] = bearer.split(' ');
+
+  if (!token) {
+    res.status(401);
+    res.json({ message: 'not valid token' });
+    return;
+  }
+
+  try {
+    //@ts-ignore
+    const user = jwt.verify(token, process.env.JWT_SECRET);
+    //@ts-ignore
+    req.user = user;
+    next();
+  } catch (e) {
+    console.error(e);
+    res.status(401);
+    res.json({ message: 'not valid token' });
+    return;
+  }
+};
