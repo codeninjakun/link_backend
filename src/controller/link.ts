@@ -16,7 +16,7 @@ export const createLink: ExpresRouteFn = async (req, res, next) => {
       shortLink: shortLink,
     },
   });
-  // Shortlink must be unique
+  //   Check if shortlink already in db - must be unique
   if (url) {
     throw new AppError("Shortlink taken, use a different short-link!",403);
   }
@@ -38,7 +38,7 @@ export const createLink: ExpresRouteFn = async (req, res, next) => {
 
     res
       .status(201)
-      .send({ message: "Link created successfully!", createdLink });
+      .send({ message: 'Link created successfully!', createdLink });
   } catch (error: any) {
     // Shortlink is unique - Insert into db
    if (error.statusCode === 404) {
