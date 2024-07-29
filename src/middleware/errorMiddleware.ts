@@ -24,22 +24,21 @@ const globalErrorHandler = (
   next: NextFunction
 ) => {
   err.statusCode = err.statusCode || 500;
-  err.statusType = err.statusType || `error`;
+  err.statusType = err.statusType || "error";
 
   if (err.isOperational) {
     res.status(err.statusCode).json({
-      status: err.statusType,
+      statustype: err.statusType,
       message: err.message,
-      code : err.statusCode,
+      code: err.statusCode,
     });
   } else {
-    console.log("Error", err);
+    console.error("Error", err);
     res.status(500).json({
       status: "error",
-      message: "Something really went wrong",
-      code : res.statusCode
+      message: "Something went wrong",
+      code: 500,
     });
   }
 };
-
 export { AppError, globalErrorHandler };
