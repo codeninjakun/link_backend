@@ -26,6 +26,8 @@ model Link {
   shortLink     String   @unique
   encState      Boolean?
   encPass       String?
+  timelimitState Boolean?
+  timeLimit     DateTime?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @default(now())
   belongsToId   Int

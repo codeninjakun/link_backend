@@ -6,10 +6,17 @@
 import { ExpresRouteFn } from "../types/ExpressRoutefn";
 import { AppError, globalErrorHandler } from "../middleware/errorMiddleware";
 import prisma from "../db";
-import { PrismaClientKnownRequestError } from "@prisma/client/runtime/react-native.js";
 
 export const createLink: ExpresRouteFn = async (req, res, next) => {
-  const { originalLink, shortLink, encState, encPass, qrCodeState } = req.body;
+  const {
+    originalLink,
+    shortLink,
+    encState,
+    encPass,
+    qrCodeState,
+    timeLimit,
+    timelimitState,
+  } = req.body;
 
   const url = await prisma.link.findUnique({
     where: {
@@ -18,7 +25,7 @@ export const createLink: ExpresRouteFn = async (req, res, next) => {
   });
   //   Check if shortlink already in db - must be unique
   if (url) {
-    throw new AppError("Shortlink taken, use a different short-link!",403);
+    throw new AppError("Shortlink taken, use a different short-link!", 403);
   }
 
   try {
@@ -33,15 +40,17 @@ export const createLink: ExpresRouteFn = async (req, res, next) => {
         belongsToId: req.user.id, // user login info
         // @ts-ignore
         qrCodeState,
+        timeLimit,
+        timelimitState
       },
     });
 
     res
       .status(201)
-      .send({ message: 'Link created successfully!', createdLink });
+      .send({ message: "Link created successfully!", createdLink });
   } catch (error: any) {
     // Shortlink is unique - Insert into db
-   if (error.statusCode === 404) {
+    if (error.statusCode === 404) {
       return res.status(404).json({
         status: "fail",
         message: error.message,
@@ -61,10 +70,10 @@ export const removeLink: ExpresRouteFn = async (req, res, next) => {
   try {
     const link = await prisma.link.findUnique({ where: { shortLink } });
     if (!link) {
-      throw new AppError("Link not found",404)
+      throw new AppError("Link not found", 404);
     }
     if (link.belongsToId !== belongsToId) {
-      throw new AppError("Unauthorized to delete this link",400)
+      throw new AppError("Unauthorized to delete this link", 400);
     }
     await prisma.link.delete({
       where: {
@@ -88,15 +97,26 @@ export const removeLink: ExpresRouteFn = async (req, res, next) => {
 
 // get a single link of that user and TODO: add enc method to open that link with password only
 export const getLink: ExpresRouteFn = async (req, res, next) => {
-  const { shortLink } = req.body;
+  const shortLink = req.params["short"];
+  console.log(shortLink);
   try {
     // find the link
     const link = await prisma.link.findUnique({ where: { shortLink } });
     if (!link) {
       throw new AppError("Link not found", 404);
     }
-    console.log(link.originalLink);
-    res.status(200).send({ message: "Link found!", link });
+    // delete the short link record after given time stamp
+    if (link.timelimitState) {
+      const nowTime = new Date();
+      if (link.timeLimit && nowTime >= link.timeLimit) {
+        await prisma.link.delete({ where: { shortLink } });
+        res.status(200).send("Link Expired");
+      }
+      res.redirect(link.originalLink);
+      return;
+    }
+    res.redirect(link.originalLink);
+    // res.status(200).send({ message: "Link found!", Link : link.originalLink });
   } catch (error: any) {
     if (error.statusCode === 404) {
       return res.status(404).json({
@@ -108,3 +128,5 @@ export const getLink: ExpresRouteFn = async (req, res, next) => {
     next(error); // Pass other errors to the global error handler
   }
 };
+
+
