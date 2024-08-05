@@ -21,28 +21,29 @@ model User {
 }
 
 model Link {
-  id            Int      @id @default(autoincrement())
-  originalLink  String
-  shortLink     String   @unique
-  encState      Boolean?
-  encPass       String?
+  id             Int       @id @default(autoincrement())
+  originalLink   String
+  shortLink      String    @unique
+  encState       Boolean?
+  encPass        String?
   timelimitState Boolean?
-  timeLimit     DateTime?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @default(now())
-  belongsToId   Int
-  belongsToUser User     @relation(fields: [belongsToId], references: [id])
-  qrCodeState   Boolean
-  stats         Stats[]
+  timeLimit      DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @default(now())
+  belongsToId    Int
+  belongsToUser  User      @relation(fields: [belongsToId], references: [id])
+  qrCodeState    Boolean
+  stats          Stats[]
 }
 
 model Stats {
-  id          Int        @id @default(autoincrement())
-  numOfVisits Int
-  browser     String
-  location    String
-  reloads     Int?
-  visitTime   DateTime[]
-  linkid      Int
-  linkedTo    Link       @relation(fields: [linkid], references: [id])
+  id              Int        @id @default(autoincrement())
+  visits          Json
+  aggregateVisits Int
+  browser         String[]
+  location        String[]
+  reloads         Int?
+  visitTime       DateTime[]
+  linkid          Int
+  linkedTo        Link       @relation(fields: [linkid], references: [id])
 }

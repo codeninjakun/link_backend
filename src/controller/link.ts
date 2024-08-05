@@ -4,8 +4,9 @@
 // get the link
 // get the link with enc
 import { ExpresRouteFn } from '../types/ExpressRoutefn';
-import { AppError, globalErrorHandler } from '../middleware/errorMiddleware';
+import { AppError } from '../middleware/errorMiddleware';
 import prisma from '../db';
+import { Prisma } from '@prisma/client';
 
 export const createLink: ExpresRouteFn = async (req, res, next) => {
   const {
@@ -45,6 +46,18 @@ export const createLink: ExpresRouteFn = async (req, res, next) => {
       },
     });
 
+    // Initialize visit statistics for the newly created link
+    const stats = await prisma.stats.create({
+      data: {
+        visits: [{}],
+        location: [],
+        aggregateVisits: 0,
+        browser: [],
+        visitTime: [],
+        linkid: createdLink.id,
+      },
+    });
+
     res
       .status(201)
       .send({ message: 'Link created successfully!', createdLink });
@@ -66,15 +79,26 @@ export const removeLink: ExpresRouteFn = async (req, res, next) => {
   // @ts-ignore
   const belongsToId = req.user.id;
 
-  // find the link from id
+  // find the link and verify it belongs to the correct user:
   try {
-    const link = await prisma.link.findUnique({ where: { shortLink } });
+    const link = await prisma.link.findUnique({
+      where: { shortLink },
+      include: { stats: true },
+    });
     if (!link) {
       throw new AppError('Link not found', 404);
     }
     if (link.belongsToId !== belongsToId) {
       throw new AppError('Unauthorized to delete this link', 400);
     }
+    // Remove associated link statistics:
+    await prisma.stats.delete({
+      where: {
+        id: link.stats[0].id,
+      },
+    });
+
+    // Remove the link record:
     await prisma.link.delete({
       where: {
         shortLink,
@@ -101,30 +125,53 @@ export const getLink: ExpresRouteFn = async (req, res, next) => {
   console.log(shortLink);
   try {
     // find the link
-    const link = await prisma.link.findUnique({ where: { shortLink } });
+    const link = await prisma.link.findUnique({
+      where: { shortLink },
+      include: { stats: true },
+    });
     if (!link) {
       throw new AppError('Link not found', 404);
     }
-    // delete the short link record after given time stamp
+
+    // Update the link statistics for this visit 👇
+    const today = new Date();
+    if (link.stats.length != 0) {
+      const visit = link.stats[0].visits;
+      //@ts-ignore
+      visit[today.toLocaleDateString()] = visit[today.toLocaleDateString()]
+        ? //@ts-ignore
+          (visit[today.toLocaleDateString()] += 1)
+        : 1;
+      link.stats[0].browser.push(req.headers['user-agent']!);
+      link.stats[0].location.push(req.headers.host!);
+      link.stats[0].visitTime.push(today);
+      const stats = await prisma.stats.update({
+        where: {
+          id: link.stats[0].id,
+        },
+        data: {
+          aggregateVisits: (link.stats[0].aggregateVisits += 1),
+          browser: link.stats[0].browser,
+          location: link.stats[0].location,
+          visits: visit as Prisma.InputJsonArray[],
+          visitTime: link.stats[0].visitTime,
+        },
+      });
+    }
+
+    // Update the link statistics for this visit 👆
+
+    // Check for TTL on the link
     if (link.timelimitState) {
-      const nowTime = new Date();
-      if (link.timeLimit && nowTime >= link.timeLimit) {
+      if (link.timeLimit && today >= link.timeLimit) {
+        // IF TTL expired delete the link
         await prisma.link.delete({ where: { shortLink } });
         res.status(200).send('Link Expired');
-      }
-      if (link.encState) {
-        res.redirect('./encCheck.html');
-        return;
       }
       res.redirect(link.originalLink);
       return;
     }
-    if (link.encState) {
-      res.redirect('./encCheck.html');
-      return;
-    }
     res.redirect(link.originalLink);
-    // res.status(200).send({ message: "Link found!", Link : link.originalLink });
   } catch (error: any) {
     if (error.statusCode === 404) {
       return res.status(404).json({
