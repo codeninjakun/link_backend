@@ -7,6 +7,7 @@ import { ExpresRouteFn } from '../types/ExpressRoutefn';
 import { AppError } from '../middleware/errorMiddleware';
 import prisma from '../db';
 import { Prisma } from '@prisma/client';
+import { create, findUnique } from './helper';
 
 export const createLink: ExpresRouteFn = async (req, res, next) => {
   const {
@@ -19,31 +20,24 @@ export const createLink: ExpresRouteFn = async (req, res, next) => {
     timelimitState,
   } = req.body;
 
-  const url = await prisma.link.findUnique({
-    where: {
-      shortLink: shortLink,
-    },
-  });
+  const url = await findUnique(shortLink);
   //   Check if shortlink already in db - must be unique
   if (url) {
     throw new AppError('Shortlink taken, use a different short-link!', 403);
   }
 
   try {
-    const createdLink = await prisma.link.create({
-      data: {
-        shortLink,
-        originalLink,
-        encState,
-        encPass,
-        // TODO: Add user type definitions
-        //@ts-ignore
-        belongsToId: req.user.id, // user login info
-        // @ts-ignore
-        qrCodeState,
-        timeLimit,
-        timelimitState,
-      },
+    const createdLink = await create({
+      shortLink,
+      originalLink,
+      encState,
+      encPass,
+      // TODO: Add user type definitions
+      //@ts-ignore
+      belongsToId: req.user.id,
+      qrCodeState,
+      timeLimit,
+      timelimitState,
     });
 
     // Initialize visit statistics for the newly created link
@@ -81,10 +75,7 @@ export const removeLink: ExpresRouteFn = async (req, res, next) => {
 
   // find the link and verify it belongs to the correct user:
   try {
-    const link = await prisma.link.findUnique({
-      where: { shortLink },
-      include: { stats: true },
-    });
+    const link = await findUnique(shortLink);
     if (!link) {
       throw new AppError('Link not found', 404);
     }
@@ -125,10 +116,8 @@ export const getLink: ExpresRouteFn = async (req, res, next) => {
   console.log(shortLink);
   try {
     // find the link
-    const link = await prisma.link.findUnique({
-      where: { shortLink },
-      include: { stats: true },
-    });
+    const link = await findUnique(shortLink);
+
     if (!link) {
       throw new AppError('Link not found', 404);
     }
@@ -168,8 +157,8 @@ export const getLink: ExpresRouteFn = async (req, res, next) => {
         await prisma.link.delete({ where: { shortLink } });
         res.status(200).send('Link Expired');
       }
-      res.redirect(link.originalLink);
-      return;
+      // res.redirect(link.originalLink);
+      // return;
     }
     res.redirect(link.originalLink);
   } catch (error: any) {
@@ -180,6 +169,6 @@ export const getLink: ExpresRouteFn = async (req, res, next) => {
         code: error.statusCode,
       });
     }
-    next(error); // Pass other errors to the global error handler
+    next(error);
   }
 };
