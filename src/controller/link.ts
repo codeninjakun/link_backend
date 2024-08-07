@@ -68,6 +68,59 @@ export const createLink: ExpresRouteFn = async (req, res, next) => {
   }
 };
 
+export const updateLink: ExpresRouteFn = async (req, res, next) => {
+  const {
+    originalLink,
+    encState,
+    encPass,
+    qrCodeState,
+    timeLimit,
+    timelimitState,
+  } = req.body;
+  const shortLink = req.params['short'];
+
+  const url = await findUnique(shortLink);
+  //   Check if shortlink already in db - must be unique
+  if (url) {
+    try {
+      const createdLink = await prisma.link.update({
+        where: {
+          shortLink,
+          //@ts-ignore
+          belongsToId: req.user.id,
+        },
+        data: {
+          originalLink,
+          encState,
+          encPass,
+          // TODO: Add user type definitions
+          //@ts-ignore
+
+          qrCodeState,
+          timeLimit,
+          timelimitState,
+        },
+      });
+
+      res
+        .status(201)
+        .send({ message: 'Link updated successfully!', createdLink });
+    } catch (error: any) {
+      // Shortlink is unique - Insert into db
+      if (error.statusCode === 404) {
+        return res.status(404).json({
+          status: 'fail',
+          message: error.message,
+          code: error.statusCode,
+        });
+      }
+      next(error); // Pass other errors to the global error handler
+    }
+  } else {
+    throw new AppError('Link not found.', 404);
+  }
+};
+
 export const removeLink: ExpresRouteFn = async (req, res, next) => {
   const { shortLink } = req.body;
   // @ts-ignore
@@ -113,7 +166,6 @@ export const removeLink: ExpresRouteFn = async (req, res, next) => {
 // get a single link of that user and TODO: add enc method to open that link with password only
 export const getLink: ExpresRouteFn = async (req, res, next) => {
   const shortLink = req.params['short'];
-  console.log(shortLink);
   try {
     // find the link
     const link = await findUnique(shortLink);
